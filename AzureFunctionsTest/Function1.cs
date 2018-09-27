@@ -1,4 +1,4 @@
-
+﻿
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -9,25 +9,50 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AzureFunctionsTest
 {
     public static class Function1
     {
-        [FunctionName("Function1")]
-        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, ILogger log)
+        [FunctionName("Function-Begin")]
+        public static async Task<IActionResult> Begin(
+            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]
+            HttpRequest req,
+            [OrchestrationClient] DurableOrchestrationClient client, ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
-
-            string name = req.Query["name"];
-
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
-
-            return name != null
-                ? (ActionResult)new OkObjectResult($"Hello, {name}")
-                : new BadRequestObjectResult("Please pass a name on the query string or in the request body");
+            await client.StartNewAsync("Function-StartOrchestration", null);
+            return new OkObjectResult($"Orchestration Start.");
         }
+
+        [FunctionName("Function-StartOrchestration")]
+        public static async Task StartOrchestration(
+            [OrchestrationTrigger] DurableOrchestrationContext content,
+            ILogger log)
+        {
+            var tassAndMessageList = await content.CallActivityAsync<IEnumerable<string>>("Function-GetList", null);
+            var sendGridTasks =
+                tassAndMessageList.Select(elem => content.CallActivityAsync("Function-RunActivity", elem));
+            await Task.WhenAll(sendGridTasks);
+        }
+
+        [FunctionName("Function-GetList")]
+        public static async Task<IEnumerable<string>> GetList(
+            [ActivityTrigger] DurableActivityContext context,
+            ILogger log)
+        {
+            return new List<string>();
+        }
+
+        [FunctionName("Function-RunActivity")]
+        public static async Task RunActivity(
+            [ActivityTrigger] DurableActivityContext context,
+            ILogger log)
+        {
+            return;
+        }
+
     }
 }
