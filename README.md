@@ -1,0 +1,3 @@
+AzureFunctionsTest
+
+QueueのAPIを大量に消費するので確認のため作った
