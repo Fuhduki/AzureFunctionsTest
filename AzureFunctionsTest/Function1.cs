@@ -32,18 +32,18 @@ namespace AzureFunctionsTest
             [OrchestrationTrigger] DurableOrchestrationContext content,
             ILogger log)
         {
-            var tassAndMessageList = await content.CallActivityAsync<IEnumerable<string>>("Function-GetList", null);
+            var tassAndMessageList = await content.CallActivityAsync<IEnumerable<(TestData, string, string)>>("Function-GetList", null);
             var sendGridTasks =
                 tassAndMessageList.Select(elem => content.CallActivityAsync("Function-RunActivity", elem));
             await Task.WhenAll(sendGridTasks);
         }
 
         [FunctionName("Function-GetList")]
-        public static async Task<IEnumerable<string>> GetList(
+        public static async Task<IEnumerable<(TestData, string, string)>> GetList(
             [ActivityTrigger] DurableActivityContext context,
             ILogger log)
         {
-            return new List<string>();
+            return new List<(TestData, string, string)>();
         }
 
         [FunctionName("Function-RunActivity")]
@@ -52,6 +52,11 @@ namespace AzureFunctionsTest
             ILogger log)
         {
             return;
+        }
+
+        public class TestData
+        {
+            public string Data { get; set; }
         }
 
     }
